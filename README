@@ -5,3 +5,17 @@ Date: 8/26/26
 Description:
 A livesplit mac menu bar to keep me productive. ironically, the time I spent 
 making this could've been used more effectively to actually be productive.
+
+Running:
+  .venv/bin/python setup.py py2app -A
+  open dist/livesplit.app
+
+Notes:
+  -A is an alias build: it symlinks the source, so edits take effect on the
+  next `open` with no rebuild. Drop -A for a real standalone bundle.
+
+  The .app is named after CFBundleName in setup.py, NOT the script filename.
+  APP = ['livesplit.py'] + CFBundleName 'livesplit' -> dist/livesplit.app
+
+  Don't change CFBundleIdentifier (com.alexvu.livesplit). macOS ties the
+  notification permission to that ID; a new one means re-approving.
