@@ -1,55 +1,70 @@
+import time
+
 import rumps
-import datetime
 
 
 class Livesplit(rumps.App):
-    def __init__(self, selfquit_button='Quit'):
-        super(Livesplit, self).__init__("LiveSplit")
-        self.menu = ["Add Segments", "Start Run"]
+    def __init__(self):
+        super().__init__("LiveSplit")
+        self.menu = ["Add Segments", "Start Run", "Split", "Reset"]
 
-        self.segments = [] 
+        self.segments = []  # (name, target seconds)
+        self.i = 0
+        self.start = 0.0
 
-        self.time = 0
-        self.task = ""
-
-        self.timer = rumps.Timer(self.update, 1)
-
-        rumps.debug_mode("On")
+        self.timer = rumps.Timer(self.update, 0.05)
 
     @rumps.clicked("Add Segments")
     def add_segments(self, sender):
-        # rumps.notification("starting run", "Subtitle", "go!")
-        window = rumps.Window("Format: [event minutes]", "Enter Your Segments:", default_text="", ok=None, cancel=None, 
-                     dimensions=(320, 160))
-
-        response = window.run()
-        r = response.text.split()
-
-        self.add_segments_helper(r)
+        window = rumps.Window("Format: task minutes task minutes ...", "Enter Your Segments:",
+                              default_text="", ok=None, cancel=None, dimensions=(320, 160))
+        tokens = window.run().text.split()
+        try:
+            if len(tokens) % 2:
+                raise ValueError
+            new = [(n, float(m) * 60) for n, m in zip(tokens[::2], tokens[1::2])]
+        except ValueError:
+            rumps.alert("Bad input", "Use: task minutes task minutes ...")
+            return
+        self.segments += new
 
     @rumps.clicked("Start Run")
     def commence(self, sender):
-        if self.segments:
-            self.task = self.segments[0][0]
-            self.time = int(self.segments[0][1])
-            self.timer.start()
+        if not self.segments:
+            rumps.alert("Add segments first")
+            return
+        self.i = 0
+        self.start = time.monotonic()
+        self.timer.start()
+
+    @rumps.clicked("Split")
+    def split(self, sender):
+        if not self.timer.is_alive():
+            return
+        self.i += 1
+        if self.i >= len(self.segments):
+            self.timer.stop()
+            self.title = "done"
         else:
-            self.title = "error, self.segments is null"
+            self.start = time.monotonic()
 
-    @rumps.timer(1)
-    def update(self):
-        if self.time is int:
-            self.title = str(self.task) + " " + str(self.time)
-            self.time -= 1
+    @rumps.clicked("Reset")
+    def reset(self, sender):
+        self.timer.stop()
+        self.title = "LiveSplit"
 
-    def add_segments_helper(self, response: list):
-        for i in range(0, len(response), 2):
-            task = response[i]
-            time = response[i + 1]
-            self.segments.append((task,time))
+    def update(self, _):
+        name, target = self.segments[self.i]
+        elapsed = time.monotonic() - self.start
+        # green under the last minute, yellow in the last minute, red once over target
+        dot = "🟢" if elapsed < target - 60 else "🟡" if elapsed < target else "🔴"
+        m, s = divmod(elapsed, 60)
+        self.title = f"{dot} {name} {int(m)}:{s:06.3f}"
+
 
 def main():
     Livesplit().run()
+
 
 if __name__ == "__main__":
     main()
