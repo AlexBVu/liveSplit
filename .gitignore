@@ -3,3 +3,5 @@ build/
 dist/
 CLAUDE.md
 ROADMAP.md
+config.bat
+node_modules
